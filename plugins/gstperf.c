@@ -269,7 +269,8 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
   }
 
   perf->frame_count++;
-  perf->bps = gst_buffer_get_size (buf);
+  perf->bps += gst_buffer_get_size (buf);
+
   return GST_FLOW_OK;
 }
 

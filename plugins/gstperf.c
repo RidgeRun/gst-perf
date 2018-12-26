@@ -18,7 +18,7 @@
  * SECTION:element-perf
  *
  * Perf plugin can be used to capture pipeline performance data.  Each
- * second perf plugin sends frames per second and bytes per second data
+ * second perf plugin sends frames per second and bits per second data
  * using gst_element_post_message.
  */
 
@@ -59,6 +59,8 @@ G_DEFINE_TYPE (GstPerf, gst_perf, GST_TYPE_BASE_TRANSFORM);
 
 /* The message is variable length depending on configuration */
 #define GST_PERF_MSG_MAX_SIZE 4096
+
+#define GST_PERF_BITS_PER_BYTE 8
 
 /* prototypes */
 static void gst_perf_set_property (GObject * object, guint property_id,
@@ -107,7 +109,7 @@ gst_perf_init (GstPerf * perf)
 {
   perf->prev_timestamp = GST_CLOCK_TIME_NONE;
   perf->frame_count = 0;
-  perf->bps = 0;
+  perf->bps = G_GUINT64_CONSTANT (0);
   perf->prev_cpu_total = 0;
   perf->prev_cpu_idle = 0;
   perf->print_arm_load = FALSE;
@@ -241,13 +243,13 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     factor_d = GST_TIME_AS_MSECONDS (GST_SECOND);
     fps_int = perf->frame_count * factor_d / factor_n;
     fps_frac = 100 * perf->frame_count * factor_d / factor_n - 100 * fps_int;
-    /*Calculate bytes per second */
-    perf->bps = perf->bps * factor_d / factor_n;
+    /*Calculate bits per second */
+    perf->bps = perf->bps * GST_PERF_BITS_PER_BYTE * factor_d / factor_n;
 
     idx =
         g_snprintf (info, GST_PERF_MSG_MAX_SIZE,
-        "Timestamp: %" GST_TIME_FORMAT "; " "Bps: %d; " "fps: %d.%d",
-        GST_TIME_ARGS (time), perf->bps, fps_int, fps_frac);
+        "Timestamp: %" GST_TIME_FORMAT "; " "bps: %" G_GUINT64_FORMAT "; "
+        "fps: %d.%d", GST_TIME_ARGS (time), perf->bps, fps_int, fps_frac);
 
     perf->frame_count = 0;
     perf->bps = 0;

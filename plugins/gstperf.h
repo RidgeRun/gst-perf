@@ -45,7 +45,7 @@ struct _GstPerf
 
   GstClockTime prev_timestamp;
   guint32 frame_count;
-  guint32 bps;
+  guint64 bps;
   guint32 prev_cpu_total;
   guint32 prev_cpu_idle;
 

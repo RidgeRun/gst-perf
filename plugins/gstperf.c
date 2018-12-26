@@ -74,6 +74,9 @@ static gboolean gst_perf_start (GstBaseTransform * trans);
 static gboolean gst_perf_stop (GstBaseTransform * trans);
 
 static void gst_perf_reset (GstPerf * perf);
+static void gst_perf_clear (GstPerf * perf);
+static gdouble gst_perf_update_average (guint64 count, gdouble current,
+    gdouble old);
 
 static void
 gst_perf_class_init (GstPerfClass * klass)
@@ -109,7 +112,7 @@ gst_perf_class_init (GstPerfClass * klass)
 static void
 gst_perf_init (GstPerf * perf)
 {
-  gst_perf_reset (perf);
+  gst_perf_clear (perf);
 
   perf->print_arm_load = DEFAULT_PRINT_ARM_LOAD;
 
@@ -151,7 +154,7 @@ gst_perf_start (GstBaseTransform * trans)
 {
   GstPerf *perf = GST_PERF (trans);
 
-  gst_perf_reset (perf);
+  gst_perf_clear (perf);
 
   perf->error = g_error_new (GST_CORE_ERROR,
       GST_CORE_ERROR_TAG, "Performance Information");
@@ -163,7 +166,7 @@ gst_perf_stop (GstBaseTransform * trans)
 {
   GstPerf *perf = GST_PERF (trans);
 
-  gst_perf_reset (perf);
+  gst_perf_clear (perf);
 
   if (perf->error)
     g_error_free (perf->error);
@@ -240,22 +243,33 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
   if (!GST_CLOCK_TIME_IS_VALID (perf->prev_timestamp) ||
       (GST_CLOCK_TIME_IS_VALID (time) && diff >= GST_SECOND)) {
-    gdouble time_factor;
+    gdouble time_factor, fps, bps;
     guint idx;
     gchar info[GST_PERF_MSG_MAX_SIZE];
 
     time_factor = 1.0 * diff / GST_SECOND;
 
     /*Calculate frames per second */
-    perf->fps = perf->frame_count / time_factor;
+    fps = perf->frame_count / time_factor;
+
+    /*Update fps average */
+    perf->fps =
+        gst_perf_update_average (perf->frame_count_total, fps, perf->fps);
+    perf->frame_count_total++;
 
     /*Calculate bits per second */
-    perf->bps = perf->byte_count * GST_PERF_BITS_PER_BYTE / time_factor;
+    bps = perf->byte_count * GST_PERF_BITS_PER_BYTE / time_factor;
+
+    /*Update bps average */
+    perf->bps =
+        gst_perf_update_average (perf->byte_count_total, bps, perf->bps);
+    perf->byte_count_total++;
 
     idx =
         g_snprintf (info, GST_PERF_MSG_MAX_SIZE,
-        "timestamp: %" GST_TIME_FORMAT "; " "bps: %0.03f; "
-        "fps: %0.03f", GST_TIME_ARGS (time), perf->bps, perf->fps);
+        "timestamp: %" GST_TIME_FORMAT "; " "bps: %0.03f; mean_bps: %0.03f; "
+        "fps: %0.03f; mean_fps: %0.03f", GST_TIME_ARGS (time), bps, perf->bps,
+        fps, perf->fps);
 
     gst_perf_reset (perf);
     perf->prev_timestamp = time;
@@ -264,7 +278,7 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
       guint32 cpu_load;
       gst_perf_cpu_get_load (perf, &cpu_load);
       idx = g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
-          "; CPU: %d; ", cpu_load);
+          "; cpu: %d; ", cpu_load);
     }
 
     gst_element_post_message (
@@ -279,6 +293,18 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
   return GST_FLOW_OK;
 }
 
+static gdouble
+gst_perf_update_average (guint64 count, gdouble current, gdouble old)
+{
+  gdouble ret = 0;
+
+  if (count != 0) {
+    ret = ((count - 1) * old + current) / count;
+  }
+
+  return ret;
+}
+
 static void
 gst_perf_reset (GstPerf * perf)
 {
@@ -287,13 +313,24 @@ gst_perf_reset (GstPerf * perf)
   perf->prev_timestamp = GST_CLOCK_TIME_NONE;
 
   perf->frame_count = 0;
-  perf->fps = 0.0;
-
   perf->byte_count = G_GUINT64_CONSTANT (0);
-  perf->bps = 0.0;
 
   perf->prev_cpu_total = 0;
   perf->prev_cpu_idle = 0;
+}
+
+static void
+gst_perf_clear (GstPerf * perf)
+{
+  g_return_if_fail (perf);
+
+  gst_perf_reset (perf);
+
+  perf->fps = 0.0;
+  perf->frame_count_total = G_GUINT64_CONSTANT (0);
+
+  perf->bps = 0.0;
+  perf->byte_count_total = G_GUINT64_CONSTANT (0);
 }
 
 static gboolean

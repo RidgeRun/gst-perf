@@ -18,8 +18,6 @@
 #ifndef _GST_PERF_H_
 #define _GST_PERF_H_
 
-#include "config.h"
-
 #include <gst/gst.h>
 #include <gst/base/gstbasetransform.h>
 

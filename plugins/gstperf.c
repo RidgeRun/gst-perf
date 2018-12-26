@@ -239,7 +239,6 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     factor_n =
         GST_TIME_AS_MSECONDS (GST_CLOCK_DIFF (perf->prev_timestamp, time));
     factor_d = GST_TIME_AS_MSECONDS (GST_SECOND);
-    guint fps = factor_n / factor_d;
     fps_int = perf->frame_count * factor_d / factor_n;
     fps_frac = 100 * perf->frame_count * factor_d / factor_n - 100 * fps_int;
     /*Calculate bytes per second */

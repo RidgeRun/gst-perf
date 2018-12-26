@@ -181,6 +181,9 @@ gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
   gchar name[4];
   FILE *fp;
 
+  /* Default value in case of failure */
+  *cpu_load = -1;
+
   /* Read the overall system information */
   fp = fopen ("/proc/stat", "r");
 

@@ -44,8 +44,12 @@ struct _GstPerf
   GError *error;
 
   GstClockTime prev_timestamp;
+  gdouble fps;
   guint32 frame_count;
-  guint64 bps;
+
+  gdouble bps;
+  guint64 byte_count;
+
   guint32 prev_cpu_total;
   guint32 prev_cpu_idle;
 

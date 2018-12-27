@@ -128,7 +128,9 @@ gst_perf_set_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_PRINT_ARM_LOAD:
+      GST_OBJECT_LOCK (perf);
       perf->print_arm_load = g_value_get_boolean (value);
+      GST_OBJECT_UNLOCK (perf);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -237,7 +239,6 @@ static GstFlowReturn
 gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 {
   GstPerf *perf = GST_PERF (trans);
-
   GstClockTime time = gst_util_get_timestamp ();
   GstClockTime diff = GST_CLOCK_DIFF (perf->prev_timestamp, time);
 
@@ -246,6 +247,7 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     gdouble time_factor, fps, bps;
     guint idx;
     gchar info[GST_PERF_MSG_MAX_SIZE];
+    gboolean print_arm_load;
 
     time_factor = 1.0 * diff / GST_SECOND;
 
@@ -274,7 +276,11 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     gst_perf_reset (perf);
     perf->prev_timestamp = time;
 
-    if (perf->print_arm_load) {
+    GST_OBJECT_LOCK (perf);
+    print_arm_load = perf->print_arm_load;
+    GST_OBJECT_UNLOCK (perf);
+
+    if (print_arm_load) {
       guint32 cpu_load;
       gst_perf_cpu_get_load (perf, &cpu_load);
       idx = g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,

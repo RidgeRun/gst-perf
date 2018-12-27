@@ -32,37 +32,9 @@ G_BEGIN_DECLS
   (G_TYPE_CHECK_INSTANCE_TYPE((obj),GST_TYPE_PERF))
 #define GST_IS_PERF_CLASS(obj) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_PERF))
+
 typedef struct _GstPerf GstPerf;
 typedef struct _GstPerfClass GstPerfClass;
-
-struct _GstPerf
-{
-  GstBaseTransform parent;
-
-  GstPad *sinkpad;
-  GstPad *srcpad;
-  GError *error;
-
-  GstClockTime prev_timestamp;
-  gdouble fps;
-  guint32 frame_count;
-  guint64 frame_count_total;
-
-  gdouble bps;
-  guint64 byte_count;
-  guint64 byte_count_total;
-
-  guint32 prev_cpu_total;
-  guint32 prev_cpu_idle;
-
-  /* Properties */
-  gboolean print_arm_load;
-};
-
-struct _GstPerfClass
-{
-  GstBaseTransformClass parent_class;
-};
 
 GType gst_perf_get_type (void);
 

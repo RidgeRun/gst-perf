@@ -53,6 +53,35 @@ enum
   PROP_PRINT_ARM_LOAD
 };
 
+struct _GstPerf
+{
+  GstBaseTransform parent;
+
+  GstPad *sinkpad;
+  GstPad *srcpad;
+  GError *error;
+
+  GstClockTime prev_timestamp;
+  gdouble fps;
+  guint32 frame_count;
+  guint64 frame_count_total;
+
+  gdouble bps;
+  guint64 byte_count;
+  guint64 byte_count_total;
+
+  guint32 prev_cpu_total;
+  guint32 prev_cpu_idle;
+
+  /* Properties */
+  gboolean print_arm_load;
+};
+
+struct _GstPerfClass
+{
+  GstBaseTransformClass parent_class;
+};
+
     /* class initialization */
 #define gst_perf_parent_class parent_class
 G_DEFINE_TYPE (GstPerf, gst_perf, GST_TYPE_BASE_TRANSFORM);

@@ -22,11 +22,14 @@
  * using gst_element_post_message.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "gstperf.h"
 
 #include <stdio.h>
-
-#include "config.h"
+#include <string.h>
 
 /* pad templates */
 static GstStaticPadTemplate gst_perf_src_template =

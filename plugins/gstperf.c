@@ -22,11 +22,14 @@
  * using gst_element_post_message.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "gstperf.h"
 
 #include <stdio.h>
-
-#include "config.h"
+#include <string.h>
 
 /* pad templates */
 static GstStaticPadTemplate gst_perf_src_template =
@@ -298,9 +301,10 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
 
     idx =
         g_snprintf (info, GST_PERF_MSG_MAX_SIZE,
-        "timestamp: %" GST_TIME_FORMAT "; " "bps: %0.03f; mean_bps: %0.03f; "
-        "fps: %0.03f; mean_fps: %0.03f", GST_TIME_ARGS (time), bps, perf->bps,
-        fps, perf->fps);
+        "perf: %s; timestamp: %" GST_TIME_FORMAT "; "
+        "bps: %0.03f; mean_bps: %0.03f; " "fps: %0.03f; mean_fps: %0.03f",
+        GST_OBJECT_NAME (perf), GST_TIME_ARGS (time), bps, perf->bps, fps,
+        perf->fps);
 
     gst_perf_reset (perf);
     perf->prev_timestamp = time;

@@ -56,6 +56,13 @@ enum
   PROP_PRINT_ARM_LOAD
 };
 
+/* GstPerf signals and args */
+enum
+{
+  SIGNAL_ON_BITRATE,
+  LAST_SIGNAL
+};
+
 struct _GstPerf
 {
   GstBaseTransform parent;
@@ -110,6 +117,8 @@ static void gst_perf_clear (GstPerf * perf);
 static gdouble gst_perf_update_average (guint64 count, gdouble current,
     gdouble old);
 
+static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
+
 static void
 gst_perf_class_init (GstPerfClass * klass)
 {
@@ -124,6 +133,12 @@ gst_perf_class_init (GstPerfClass * klass)
   g_object_class_install_property (gobject_class, PROP_PRINT_ARM_LOAD,
       g_param_spec_boolean ("print-arm-load", "Print arm load",
           "Print the CPU load info", DEFAULT_PRINT_ARM_LOAD, G_PARAM_WRITABLE));
+
+  gst_perf_signals[SIGNAL_ON_BITRATE] =
+      g_signal_new ("on-bitrate", G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_RUN_LAST, 0,
+      NULL, NULL, NULL,
+      G_TYPE_NONE, 1, G_TYPE_DOUBLE);
 
   base_transform_class->start = GST_DEBUG_FUNCPTR (gst_perf_start);
   base_transform_class->stop = GST_DEBUG_FUNCPTR (gst_perf_stop);
@@ -305,6 +320,8 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         "bps: %0.03f; mean_bps: %0.03f; " "fps: %0.03f; mean_fps: %0.03f",
         GST_OBJECT_NAME (perf), GST_TIME_ARGS (time), bps, perf->bps, fps,
         perf->fps);
+
+    g_signal_emit_by_name (perf, "on-bitrate", bps);
 
     gst_perf_reset (perf);
     perf->prev_timestamp = time;

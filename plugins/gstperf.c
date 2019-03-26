@@ -49,11 +49,13 @@ GST_DEBUG_CATEGORY_STATIC (gst_perf_debug);
 #define GST_CAT_DEFAULT gst_perf_debug
 
 #define DEFAULT_PRINT_ARM_LOAD    FALSE
+#define DEFAULT_BITRATE_WINDOW_SIZE    0
 
 enum
 {
   PROP_0,
-  PROP_PRINT_ARM_LOAD
+  PROP_PRINT_ARM_LOAD,
+  PROP_BITRATE_WINDOW_SIZE
 };
 
 /* GstPerf signals and args */
@@ -77,6 +79,9 @@ struct _GstPerf
   guint64 frame_count_total;
 
   gdouble bps;
+  gdouble *bps_window_buffer;
+  guint32 bps_window_size;
+  guint32 bps_window_buffer_current;
   guint64 byte_count;
   guint64 byte_count_total;
 
@@ -116,6 +121,9 @@ static void gst_perf_reset (GstPerf * perf);
 static void gst_perf_clear (GstPerf * perf);
 static gdouble gst_perf_update_average (guint64 count, gdouble current,
     gdouble old);
+static double
+gst_perf_update_moving_average (guint64 window_size, gdouble old_average,
+    gdouble new_sample, gdouble old_sample);
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
 
@@ -134,11 +142,15 @@ gst_perf_class_init (GstPerfClass * klass)
       g_param_spec_boolean ("print-arm-load", "Print arm load",
           "Print the CPU load info", DEFAULT_PRINT_ARM_LOAD, G_PARAM_WRITABLE));
 
+  g_object_class_install_property (gobject_class, PROP_BITRATE_WINDOW_SIZE,
+      g_param_spec_uint ("bitrate-window-size",
+          "Bitrate moving average window size",
+          "Number of samples used for bitrate moving average window size, 0 is all samples",
+          0, G_MAXINT, DEFAULT_BITRATE_WINDOW_SIZE, G_PARAM_WRITABLE));
+
   gst_perf_signals[SIGNAL_ON_BITRATE] =
       g_signal_new ("on-bitrate", G_TYPE_FROM_CLASS (klass),
-      G_SIGNAL_RUN_LAST, 0,
-      NULL, NULL, NULL,
-      G_TYPE_NONE, 1, G_TYPE_DOUBLE);
+      G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_DOUBLE);
 
   base_transform_class->start = GST_DEBUG_FUNCPTR (gst_perf_start);
   base_transform_class->stop = GST_DEBUG_FUNCPTR (gst_perf_stop);
@@ -162,6 +174,8 @@ gst_perf_init (GstPerf * perf)
   gst_perf_clear (perf);
 
   perf->print_arm_load = DEFAULT_PRINT_ARM_LOAD;
+  perf->bps_window_size = DEFAULT_BITRATE_WINDOW_SIZE;
+  perf->bps_window_buffer_current = 0;
 
   gst_base_transform_set_gap_aware (GST_BASE_TRANSFORM_CAST (perf), TRUE);
   gst_base_transform_set_passthrough (GST_BASE_TRANSFORM_CAST (perf), TRUE);
@@ -177,6 +191,11 @@ gst_perf_set_property (GObject * object, guint property_id,
     case PROP_PRINT_ARM_LOAD:
       GST_OBJECT_LOCK (perf);
       perf->print_arm_load = g_value_get_boolean (value);
+      GST_OBJECT_UNLOCK (perf);
+      break;
+    case PROP_BITRATE_WINDOW_SIZE:
+      GST_OBJECT_LOCK (perf);
+      perf->bps_window_size = g_value_get_uint (value);
       GST_OBJECT_UNLOCK (perf);
       break;
     default:
@@ -205,6 +224,18 @@ gst_perf_start (GstBaseTransform * trans)
 
   gst_perf_clear (perf);
 
+  if(perf->bps_window_size)
+  {
+    perf->bps_window_buffer =
+    g_malloc0 ( (perf->bps_window_size+1) * sizeof (gdouble));
+
+    if(!perf->bps_window_buffer)
+    {
+      GST_ERROR("Unable to allocate memory");
+      return FALSE;
+    }
+  }
+
   perf->error = g_error_new (GST_CORE_ERROR,
       GST_CORE_ERROR_TAG, "Performance Information");
   return TRUE;
@@ -216,6 +247,8 @@ gst_perf_stop (GstBaseTransform * trans)
   GstPerf *perf = GST_PERF (trans);
 
   gst_perf_clear (perf);
+
+  g_free(perf->bps_window_buffer);
 
   if (perf->error)
     g_error_free (perf->error);
@@ -295,6 +328,7 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     guint idx;
     gchar info[GST_PERF_MSG_MAX_SIZE];
     gboolean print_arm_load;
+    guint buffer_current_idx;
 
     time_factor = 1.0 * diff / GST_SECOND;
 
@@ -310,9 +344,26 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     bps = perf->byte_count * GST_PERF_BITS_PER_BYTE / time_factor;
 
     /*Update bps average */
-    perf->bps =
-        gst_perf_update_average (perf->byte_count_total, bps, perf->bps);
-    perf->byte_count_total++;
+    if (!perf->bps_window_size) {
+      perf->bps =
+          gst_perf_update_average (perf->byte_count_total, bps, perf->bps);
+      perf->byte_count_total++;
+    } else {
+      /*
+       * Moving average uses a circular buffer, get index for next value which
+       * is the oldest sample, this is the same as the value were the new sample
+       * is to be stored
+       */
+      buffer_current_idx = (perf->byte_count_total) % perf->bps_window_size;
+
+      perf->bps =
+          gst_perf_update_moving_average (perf->bps_window_size, perf->bps, bps,
+          perf->bps_window_buffer[buffer_current_idx]);
+
+      perf->bps_window_buffer[buffer_current_idx] = bps;
+
+      perf->byte_count_total++;
+    }
 
     idx =
         g_snprintf (info, GST_PERF_MSG_MAX_SIZE,
@@ -356,6 +407,19 @@ gst_perf_update_average (guint64 count, gdouble current, gdouble old)
 
   if (count != 0) {
     ret = ((count - 1) * old + current) / count;
+  }
+
+  return ret;
+}
+
+static gdouble
+gst_perf_update_moving_average (guint64 window_size, gdouble old_average,
+    gdouble new_sample, gdouble old_sample)
+{
+  gdouble ret = 0;
+
+  if (window_size != 0) {
+    ret = (old_average * window_size - old_sample + new_sample) / window_size;
   }
 
   return ret;

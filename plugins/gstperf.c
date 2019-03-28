@@ -198,6 +198,10 @@ gst_perf_init (GstPerf * perf)
   perf->bps_running_interval = DEFAULT_BITRATE_INTERVAL;
   perf->bps_window_buffer_current = 0;
 
+  g_mutex_init (&perf->byte_count_mutex);
+  g_mutex_init (&perf->bps_mutex);
+  g_mutex_init (&perf->mean_bps_mutex);
+
   gst_base_transform_set_gap_aware (GST_BASE_TRANSFORM_CAST (perf), TRUE);
   gst_base_transform_set_passthrough (GST_BASE_TRANSFORM_CAST (perf), TRUE);
 }
@@ -308,8 +312,6 @@ gst_perf_start (GstBaseTransform * trans)
 
   gst_perf_clear (perf);
 
-  g_mutex_init (&perf->byte_count_mutex);
-
   /* If window size is different from all samples allocate the needed memory */
   if (perf->bps_window_size) {
     perf->bps_window_buffer =
@@ -339,8 +341,6 @@ gst_perf_stop (GstBaseTransform * trans)
   gst_perf_clear (perf);
 
   g_free (perf->bps_window_buffer);
-
-  g_mutex_clear (&perf->byte_count_mutex);
 
   g_source_remove (perf->bps_source_id);
 

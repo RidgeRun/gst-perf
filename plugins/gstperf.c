@@ -88,11 +88,11 @@ struct _GstPerf
   guint64 byte_count;
   guint64 byte_count_total;
   guint bps_interval;
+  guint bps_running_interval;
   GMutex byte_count_mutex;
   GMutex bps_mutex;
   GMutex mean_bps_mutex;
   guint bps_source_id;
-  gboolean bps_running;
 
   guint32 prev_cpu_total;
   guint32 prev_cpu_idle;
@@ -114,6 +114,8 @@ G_DEFINE_TYPE (GstPerf, gst_perf, GST_TYPE_BASE_TRANSFORM);
 #define GST_PERF_MSG_MAX_SIZE 4096
 
 #define GST_PERF_BITS_PER_BYTE 8
+
+#define GST_PERF_MS_PER_S 1000.0
 
 /* prototypes */
 static void gst_perf_set_property (GObject * object, guint property_id,
@@ -193,8 +195,8 @@ gst_perf_init (GstPerf * perf)
   perf->print_arm_load = DEFAULT_PRINT_ARM_LOAD;
   perf->bps_window_size = DEFAULT_BITRATE_WINDOW_SIZE;
   perf->bps_interval = DEFAULT_BITRATE_INTERVAL;
+  perf->bps_running_interval = DEFAULT_BITRATE_INTERVAL;
   perf->bps_window_buffer_current = 0;
-  perf->bps_running = FALSE;
 
   gst_base_transform_set_gap_aware (GST_BASE_TRANSFORM_CAST (perf), TRUE);
   gst_base_transform_set_passthrough (GST_BASE_TRANSFORM_CAST (perf), TRUE);
@@ -220,11 +222,6 @@ gst_perf_set_property (GObject * object, guint property_id,
     case PROP_BITRATE_INTERVAL:
       GST_OBJECT_LOCK (perf);
       perf->bps_interval = g_value_get_uint (value);
-      if (perf->bps_running) {
-        g_source_remove (perf->bps_source_id);
-        perf->bps_source_id =
-            g_timeout_add (perf->bps_interval, gst_perf_update_bps, perf);
-      }
       GST_OBJECT_UNLOCK (perf);
       break;
     default:
@@ -268,7 +265,9 @@ gst_perf_update_bps (void *data)
   g_mutex_unlock (&perf->mean_bps_mutex);
 
   /* Calculate bits per second */
-  bps = byte_count * GST_PERF_BITS_PER_BYTE / (perf->bps_interval / 1000.0);
+  bps =
+      byte_count * GST_PERF_BITS_PER_BYTE / (perf->bps_running_interval /
+      GST_PERF_MS_PER_S);
 
   /* Update bps average */
   if (!perf->bps_window_size) {
@@ -288,7 +287,7 @@ gst_perf_update_bps (void *data)
     perf->bps_window_buffer[buffer_current_idx] = bps;
   }
   g_mutex_lock (&perf->mean_bps_mutex);
-  perf->mean_bps = bps;
+  perf->mean_bps = mean_bps;
   g_mutex_unlock (&perf->mean_bps_mutex);
 
   g_mutex_lock (&perf->bps_mutex);
@@ -314,17 +313,18 @@ gst_perf_start (GstBaseTransform * trans)
   /* If window size is different from all samples allocate the needed memory */
   if (perf->bps_window_size) {
     perf->bps_window_buffer =
-        g_malloc0 ((perf->bps_window_size + 1) * sizeof (gdouble));
+        g_malloc0 ((perf->bps_window_size) * sizeof (gdouble));
 
     if (!perf->bps_window_buffer) {
-      GST_ERROR ("Unable to allocate memory");
+      GST_ERROR_OBJECT (perf, "Unable to allocate memory");
       return FALSE;
     }
   }
 
+  perf->bps_running_interval = perf->bps_interval;
+
   perf->bps_source_id =
       g_timeout_add (perf->bps_interval, gst_perf_update_bps, perf);
-  perf->bps_running = TRUE;
 
   perf->error = g_error_new (GST_CORE_ERROR,
       GST_CORE_ERROR_TAG, "Performance Information");
@@ -343,7 +343,6 @@ gst_perf_stop (GstBaseTransform * trans)
   g_mutex_clear (&perf->byte_count_mutex);
 
   g_source_remove (perf->bps_source_id);
-  perf->bps_running = FALSE;
 
   if (perf->error)
     g_error_free (perf->error);

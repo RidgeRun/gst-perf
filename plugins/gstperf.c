@@ -349,13 +349,8 @@ gst_perf_reset (GstPerf * perf)
 {
   g_return_if_fail (perf);
 
-  perf->prev_timestamp = GST_CLOCK_TIME_NONE;
-
   perf->frame_count = 0;
   perf->byte_count = G_GUINT64_CONSTANT (0);
-
-  perf->prev_cpu_total = 0;
-  perf->prev_cpu_idle = 0;
 }
 
 static void
@@ -370,6 +365,10 @@ gst_perf_clear (GstPerf * perf)
 
   perf->bps = 0.0;
   perf->byte_count_total = G_GUINT64_CONSTANT (0);
+
+  perf->prev_timestamp = GST_CLOCK_TIME_NONE;
+  perf->prev_cpu_total = 0;
+  perf->prev_cpu_idle = 0;
 }
 
 static gboolean

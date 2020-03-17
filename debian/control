@@ -1,0 +1,16 @@
+Source: gst-perf
+Priority: optional
+Maintainer: Ridgerun Engineering <support@ridgerun.com>
+Build-Depends: debhelper (>= 10),
+               autotools-dev
+Standards-Version: 4.1.2
+Section: libs
+
+Package: libgstperf
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         libgstreamer1.0-dev,
+         libgstreamer-plugins-base1.0-dev
+Description: GstPerf
+  A GStreamer element to measure framerate, bitrate and CPU usage. 

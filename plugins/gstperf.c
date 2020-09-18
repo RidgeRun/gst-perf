@@ -148,11 +148,14 @@ gst_perf_update_moving_average (guint64 window_size, gdouble old_average,
 static gboolean gst_perf_update_bps (void *data);
 static gboolean gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load);
 #ifdef IS_LINUX
-static gboolean gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load);
+static gboolean gst_perf_cpu_get_load_linux (GstPerf * perf,
+    guint32 * cpu_load);
 #elif IS_MACOSX
-static gboolean gst_perf_cpu_get_load_macosx (GstPerf * perf, guint32 * cpu_load);
+static gboolean gst_perf_cpu_get_load_macosx (GstPerf * perf,
+    guint32 * cpu_load);
 #else
-static gboolean gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load);
+static gboolean gst_perf_cpu_get_load_other (GstPerf * perf,
+    guint32 * cpu_load);
 #endif
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
@@ -475,8 +478,9 @@ gst_perf_cpu_get_load_macosx (GstPerf * perf, guint32 * cpu_load)
   /* Default value in case of failure */
   *cpu_load = -1;
 
-  if (host_statistics (mach_host_self (), HOST_CPU_LOAD_INFO, (host_info_t)&cpuinfo, &count) == KERN_SUCCESS) {
-    for (int i=0; i < CPU_STATE_MAX; i++) {
+  if (host_statistics (mach_host_self (), HOST_CPU_LOAD_INFO,
+          (host_info_t) & cpuinfo, &count) == KERN_SUCCESS) {
+    for (int i = 0; i < CPU_STATE_MAX; i++) {
       total += cpuinfo.cpu_ticks[i];
     }
     idle = cpuinfo.cpu_ticks[CPU_STATE_IDLE];

@@ -469,6 +469,8 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         (GstElement *) perf,
         gst_message_new_info ((GstObject *) perf, perf->error,
             (const gchar *) info));
+
+    GST_INFO_OBJECT (perf, "%s", info);
   }
 
   perf->frame_count++;

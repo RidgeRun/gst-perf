@@ -33,6 +33,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef IS_MACOSX
+#  include <mach/mach_init.h>
+#  include <mach/mach_error.h>
+#  include <mach/mach_host.h>
+#  include <mach/vm_map.h>
+#endif
+
 /* pad templates */
 static GstStaticPadTemplate gst_perf_src_template =
 GST_STATIC_PAD_TEMPLATE ("src",
@@ -140,8 +147,13 @@ gst_perf_update_moving_average (guint64 window_size, gdouble old_average,
     gdouble new_sample, gdouble old_sample);
 static gboolean gst_perf_update_bps (void *data);
 static gboolean gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load);
+#ifdef IS_LINUX
 static gboolean gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load);
+#elif IS_MACOSX
+static gboolean gst_perf_cpu_get_load_macosx (GstPerf * perf, guint32 * cpu_load);
+#else
 static gboolean gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load);
+#endif
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
 
@@ -382,18 +394,7 @@ gst_perf_stop (GstBaseTransform * trans)
   return TRUE;
 }
 
-static gboolean
-gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load)
-{
-  g_return_val_if_fail (perf, FALSE);
-  g_return_val_if_fail (cpu_load, FALSE);
-
-  *cpu_load = -1;
-
-  /* Not really an error, we just don't know how to measure CPU on this OS */
-  return TRUE;
-}
-
+#ifdef IS_LINUX
 static gboolean
 gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load)
 {
@@ -458,11 +459,73 @@ cpu_failed:
   return FALSE;
 }
 
+#elif IS_MACOSX
+static gboolean
+gst_perf_cpu_get_load_macosx (GstPerf * perf, guint32 * cpu_load)
+{
+  guint32 idle = 0;
+  guint32 total = 0;
+  guint32 diff_total, diff_idle;
+  host_cpu_load_info_data_t cpuinfo;
+  mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
+
+  g_return_val_if_fail (perf, FALSE);
+  g_return_val_if_fail (cpu_load, FALSE);
+
+  /* Default value in case of failure */
+  *cpu_load = -1;
+
+  if (host_statistics (mach_host_self (), HOST_CPU_LOAD_INFO, (host_info_t)&cpuinfo, &count) == KERN_SUCCESS) {
+    for (int i=0; i < CPU_STATE_MAX; i++) {
+      total += cpuinfo.cpu_ticks[i];
+    }
+    idle = cpuinfo.cpu_ticks[CPU_STATE_IDLE];
+  } else {
+    goto cpu_failed;
+  }
+
+  /*Calculate the CPU usage since last time we checked */
+  diff_idle = idle - perf->prev_cpu_idle;
+  diff_total = total - perf->prev_cpu_total;
+  if (diff_total) {
+    /*Get a rounded result */
+    *cpu_load = (1000 * (diff_total - diff_idle) / diff_total + 5) / 10;
+  } else {
+    *cpu_load = 0;
+  }
+
+  /*Remember the total and idle CPU for the next check */
+  perf->prev_cpu_total = total;
+  perf->prev_cpu_idle = idle;
+
+  return TRUE;
+
+cpu_failed:
+  GST_ERROR ("Failed to get the CPU load");
+  return FALSE;
+}
+
+#else /* Unknown OS */
+static gboolean
+gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load)
+{
+  g_return_val_if_fail (perf, FALSE);
+  g_return_val_if_fail (cpu_load, FALSE);
+
+  *cpu_load = -1;
+
+  /* Not really an error, we just don't know how to measure CPU on this OS */
+  return TRUE;
+}
+#endif
+
 static gboolean
 gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 {
 #if IS_LINUX
   return gst_perf_cpu_get_load_linux (perf, cpu_load);
+#elif IS_MACOSX
+  return gst_perf_cpu_get_load_macosx (perf, cpu_load);
 #else
   return gst_perf_cpu_get_load_other (perf, cpu_load);
 #endif

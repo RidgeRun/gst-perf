@@ -138,8 +138,10 @@ static gdouble gst_perf_update_average (guint64 count, gdouble current,
 static double
 gst_perf_update_moving_average (guint64 window_size, gdouble old_average,
     gdouble new_sample, gdouble old_sample);
-
 static gboolean gst_perf_update_bps (void *data);
+static gboolean gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load);
+static gboolean gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load);
+static gboolean gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load);
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
 
@@ -381,7 +383,19 @@ gst_perf_stop (GstBaseTransform * trans)
 }
 
 static gboolean
-gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
+gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load)
+{
+  g_return_val_if_fail (perf, FALSE);
+  g_return_val_if_fail (cpu_load, FALSE);
+
+  *cpu_load = -1;
+
+  /* Not really an error, we just don't know how to measure CPU on this OS */
+  return TRUE;
+}
+
+static gboolean
+gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load)
 {
   gboolean cpu_load_found = FALSE;
   guint32 user, nice, sys, idle, iowait, irq, softirq, steal;
@@ -389,6 +403,9 @@ gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
   guint32 diff_total, diff_idle;
   gchar name[4];
   FILE *fp;
+
+  g_return_val_if_fail (perf, FALSE);
+  g_return_val_if_fail (cpu_load, FALSE);
 
   /* Default value in case of failure */
   *cpu_load = -1;
@@ -429,14 +446,26 @@ gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
   } else {
     *cpu_load = 0;
   }
+
   /*Remember the total and idle CPU for the next check */
   perf->prev_cpu_total = total;
   perf->prev_cpu_idle = idle;
+
   return TRUE;
 
 cpu_failed:
-  GST_ERROR ("Failed to get the CPU load");
+  GST_ERROR_OBJECT (perf, "Failed to get the CPU load");
   return FALSE;
+}
+
+static gboolean
+gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
+{
+#if IS_LINUX
+  return gst_perf_cpu_get_load_linux (perf, cpu_load);
+#else
+  return gst_perf_cpu_get_load_other (perf, cpu_load);
+#endif
 }
 
 static GstFlowReturn

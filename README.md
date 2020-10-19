@@ -1,6 +1,6 @@
 # GstPerf
 
-> A GStreamer element to measure framerate, bitrate and CPU usage
+A GStreamer element to measure framerate, bitrate and CPU usage
 
 ## Build Instructions
 
@@ -24,3 +24,9 @@ encoder:
 ```bash
 gst-launch-1.0 -e videotestsrc ! x264enc ! perf ! qtmux print-arm-load=true ! filesink location=test.mp4
 ```
+
+## Legal
+
+Copyright (c) 1999 RidgeRun, LLC.
+
+Licensed LGPL2+; see file [LICENSE](LICENSE) for details.

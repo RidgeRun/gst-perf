@@ -23,7 +23,23 @@ missing
 *.la
 *.lo
 *.o
-stamp-h1
+stamp-*
+*-stamp
 tools/gst-perf
 *~
 \#*
+*.swp
+
+# dpkg-buildpackage output and other release files
+*.debhelper.log
+.debhelper/
+debian/autoreconf.*
+debian/gst-perf.debhelper.log
+debian/gst-perf/
+debian/files
+debian/tmp
+/gst-perf-*
+*.deb
+*.substvars
+*.changes
+*.buildinfo

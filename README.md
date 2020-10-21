@@ -25,8 +25,17 @@ encoder:
 gst-launch-1.0 -e videotestsrc ! x264enc ! perf ! qtmux print-arm-load=true ! filesink location=test.mp4
 ```
 
+## Building a Debian package
+
+1. Install build dependencies (one-time step):
+   `sudo apt install -y debhelper devscripts`
+2. After cloning, run `dpkg-buildpackage -us -uc` in the source directory.
+   The package will be left in the parent directory.
+
 ## Legal
 
-Copyright (c) 1999 RidgeRun, LLC.
+Copyright (c) 2019 RidgeRun, LLC.
 
-Licensed LGPL2+; see file [LICENSE](LICENSE) for details.
+Portions copyright (c) 2020 D3 Engineering, LLC.
+
+Licensed LGPL2+ (LGPL-2.0-or-later); see file [LICENSE](LICENSE) for details.

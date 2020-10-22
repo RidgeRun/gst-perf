@@ -1,0 +1,9 @@
+#!/usr/bin/make -f
+# Copyright (c) 2020 D3 Engineering, LLC
+# By Christopher White <cwhite@d3engineering.com>
+# SPDX-License-Identifier: LGPL-2.0-or-later
+
+export DH_ALWAYS_EXCLUDE=*.a:*.la
+
+%:
+	dh $@

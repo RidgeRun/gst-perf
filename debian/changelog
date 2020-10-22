@@ -1,0 +1,5 @@
+gst-perf (0.3.0-1) UNRELEASED; urgency=medium
+
+  * Initial .deb release
+
+ -- Christopher White <cwhite@d3engineering.com>  Mon, 19 Oct 2020 12:18:19 -0400

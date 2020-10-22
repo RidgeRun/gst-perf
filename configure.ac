@@ -1,7 +1,9 @@
 dnl required version of autoconf
 AC_PREREQ([2.53])
 
-dnl TODO: fill in your package name and package version here
+dnl package name and package version
+dnl NOTE: whenever you change this, also update debian/changelog
+dnl (e.g., run `dch -i`).
 AC_INIT([gst-perf],[0.3.0])
 
 dnl required versions of gstreamer and plugins-base

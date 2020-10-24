@@ -1,0 +1,68 @@
+#!/bin/bash
+# @configure_input@
+#
+# test-locally.sh: open a shell for testing an installation of gst-perf
+# in a local directory.
+#
+# GST_DEBUG is set unless already set.  If GST_DEBUG_EXTRA is set, it will
+# be added to the end of GST_DEBUG, whether existing or default.
+#
+# Copyright (c) 2020 D3 Engineering, LLC
+# By Christopher White <cwhite@d3engineering.com>
+
+set -Eeuo pipefail
+
+# --- main ------------------------------------------------------------------
+
+main() {
+
+  # Collect variables
+  prefix="@prefix@"
+  exec_prefix="@exec_prefix@"
+  libdir="@libdir@"
+  bindir="@bindir@"
+  plugindir="@plugindir@"
+
+  # Install locally
+  destdir="$(realpath -m test-locally-install-dir)"
+  sync
+  rm -rf "$destdir"
+  V mkdir -p "$destdir"
+  V make -j4 install DESTDIR="$destdir"
+
+  # Set up environment
+  export G_MESSAGES_DEBUG=all
+  if [[ ! "${GST_DEBUG:-}" ]]; then
+      export GST_DEBUG='*:3,perf:6'
+  fi
+  export GST_DEBUG="$GST_DEBUG${GST_DEBUG_EXTRA:+,}${GST_DEBUG_EXTRA:-}"
+
+  export GST_PLUGIN_PATH="${destdir}@plugindir@:${GST_PLUGIN_PATH:-}"
+  export LD_LIBRARY_PATH="${destdir}@plugindir@:${LD_LIBRARY_PATH:-}"
+
+  # Open shell
+  if ! gst-inspect-1.0 perf &> /dev/null ; then
+    die "Could not find gst-perf plugin.  GST_PLUGIN_PATH=$GST_PLUGIN_PATH"
+  fi
+  V "${SHELL:-bash}"
+}
+
+# --- Helpers ---------------------------------------------------------------
+
+# Print the command, then run it
+V() {
+    echo '>>> ' "$@" 1>&2
+    "$@"
+}
+
+# Print an error message and exit
+function die() {
+    printf '%s ' 'Error:' "$@" 1>&2
+    echo 1>&2
+    echo "Aborting." 1>&2
+    exit 1
+} #die()
+
+# --- Run -------------------------------------------------------------------
+
+main "$@"

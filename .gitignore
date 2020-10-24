@@ -43,3 +43,7 @@ debian/tmp
 *.substvars
 *.changes
 *.buildinfo
+
+# test-locally.sh
+test-locally.sh
+/test-locally-install-dir

@@ -488,7 +488,7 @@ gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 {
   guint32 idle = 0;
   guint32 total = 0;
-  host_cpu_load_info_data_t cpuinfo;
+  host_cpu_load_info_data_t cpuinfo = { 0 };
   mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
 
   g_return_val_if_fail (perf, FALSE);

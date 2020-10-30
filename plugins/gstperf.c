@@ -147,16 +147,8 @@ gst_perf_update_moving_average (guint64 window_size, gdouble old_average,
     gdouble new_sample, gdouble old_sample);
 static gboolean gst_perf_update_bps (void *data);
 static gboolean gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load);
-#ifdef IS_LINUX
-static gboolean gst_perf_cpu_get_load_linux (GstPerf * perf,
-    guint32 * cpu_load);
-#elif IS_MACOSX
-static gboolean gst_perf_cpu_get_load_macosx (GstPerf * perf,
-    guint32 * cpu_load);
-#else
-static gboolean gst_perf_cpu_get_load_other (GstPerf * perf,
-    guint32 * cpu_load);
-#endif
+static guint32 gst_perf_compute_cpu (GstPerf * perf, guint32 idle,
+    guint32 total);
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
 
@@ -397,14 +389,53 @@ gst_perf_stop (GstBaseTransform * trans)
   return TRUE;
 }
 
+static guint32
+gst_perf_compute_cpu (GstPerf * self, guint32 current_idle,
+    guint32 current_total)
+{
+  guint32 busy = 0;
+  guint32 idle = 0;
+  guint32 total = 0;
+
+  g_return_val_if_fail (self, -1);
+
+  /* Calculate the CPU usage since last time we checked */
+  idle = current_idle - self->prev_cpu_idle;
+  total = current_total - self->prev_cpu_total;
+
+  /* Update the total and idle CPU for the next check */
+  self->prev_cpu_total = current_total;
+  self->prev_cpu_idle = current_idle;
+
+  /* Avoid a divison by zero */
+  if (0 == total) {
+    return 0;
+  }
+
+  /* - CPU usage is the fraction of time the processor spent busy:
+   * [0.0, 1.0].
+   *
+   * - We want to express this as a percentage [0% - 100%].
+   *
+   * - We want to avoid, when possible, using floating
+   * point operations (some SoC still don't have a FP unit).
+   *
+   * - Scaling to 1000 allows us round (nearest interger) by summing
+   * 5 and then scaling down back to 100 by dividing by
+   * 10. Othersise we would've lost the decimals due to integer
+   * truncating.
+   */
+  busy = total - idle;
+  return (1000 * busy / total + 5) / 10;
+}
+
 #ifdef IS_LINUX
 static gboolean
-gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load)
+gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 {
   gboolean cpu_load_found = FALSE;
   guint32 user, nice, sys, idle, iowait, irq, softirq, steal;
   guint32 total = 0;
-  guint32 diff_total, diff_idle;
   gchar name[4];
   FILE *fp;
 
@@ -441,33 +472,8 @@ gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load)
 
   /*Calculate the total CPU time */
   total = user + nice + sys + idle + iowait + irq + softirq + steal;
-  /*Calculate the CPU usage since last time we checked */
-  diff_idle = idle - perf->prev_cpu_idle;
-  diff_total = total - perf->prev_cpu_total;
-  if (diff_total) {
-    /* - CPU usage is the fraction of time the processor spent busy:
-     * [0.0, 1.0].
-     *
-     * - We want to express this as a percentage [0% - 100%].
-     *
-     * - We want to avoid, when possible, using floating
-     * point operations (some SoC still don't have a FP unit).
-     *
-     * - Scaling to 1000 allows us round (nearest interger) by summing
-     * 5 and then scaling down back to 100 by dividing by
-     * 10. Othersise we would've lost the decimals due to integer
-     * truncating.
-     */
-    guint32 time_busy = diff_total - diff_idle;
-    guint32 time_total = diff_total;
-    *cpu_load = (1000 * time_busy / time_total + 5) / 10;
-  } else {
-    *cpu_load = 0;
-  }
 
-  /*Remember the total and idle CPU for the next check */
-  perf->prev_cpu_total = total;
-  perf->prev_cpu_idle = idle;
+  *cpu_load = gst_perf_compute_cpu (perf, idle, total);
 
   return TRUE;
 
@@ -478,11 +484,10 @@ cpu_failed:
 
 #elif IS_MACOSX
 static gboolean
-gst_perf_cpu_get_load_macosx (GstPerf * perf, guint32 * cpu_load)
+gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 {
   guint32 idle = 0;
   guint32 total = 0;
-  guint32 diff_total, diff_idle;
   host_cpu_load_info_data_t cpuinfo;
   mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
 
@@ -502,19 +507,7 @@ gst_perf_cpu_get_load_macosx (GstPerf * perf, guint32 * cpu_load)
     goto cpu_failed;
   }
 
-  /*Calculate the CPU usage since last time we checked */
-  diff_idle = idle - perf->prev_cpu_idle;
-  diff_total = total - perf->prev_cpu_total;
-  if (diff_total) {
-    /*Get a rounded result */
-    *cpu_load = (1000 * (diff_total - diff_idle) / diff_total + 5) / 10;
-  } else {
-    *cpu_load = 0;
-  }
-
-  /*Remember the total and idle CPU for the next check */
-  perf->prev_cpu_total = total;
-  perf->prev_cpu_idle = idle;
+  *cpu_load = gst_perf_compute_cpu (perf, idle, total);
 
   return TRUE;
 
@@ -525,7 +518,7 @@ cpu_failed:
 
 #else /* Unknown OS */
 static gboolean
-gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load)
+gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 {
   g_return_val_if_fail (perf, FALSE);
   g_return_val_if_fail (cpu_load, FALSE);
@@ -536,18 +529,6 @@ gst_perf_cpu_get_load_other (GstPerf * perf, guint32 * cpu_load)
   return TRUE;
 }
 #endif
-
-static gboolean
-gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
-{
-#if IS_LINUX
-  return gst_perf_cpu_get_load_linux (perf, cpu_load);
-#elif IS_MACOSX
-  return gst_perf_cpu_get_load_macosx (perf, cpu_load);
-#else
-  return gst_perf_cpu_get_load_other (perf, cpu_load);
-#endif
-}
 
 static GstFlowReturn
 gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)

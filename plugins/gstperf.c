@@ -30,15 +30,15 @@
 
 #include "gstperf.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #ifdef IS_MACOSX
 #  include <mach/mach_init.h>
 #  include <mach/mach_error.h>
 #  include <mach/mach_host.h>
 #  include <mach/vm_map.h>
 #endif
+
+#include <stdio.h>
+#include <string.h>
 
 /* pad templates */
 static GstStaticPadTemplate gst_perf_src_template =

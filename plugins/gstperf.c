@@ -50,7 +50,7 @@ GST_STATIC_PAD_TEMPLATE ("sink",
 GST_DEBUG_CATEGORY_STATIC (gst_perf_debug);
 #define GST_CAT_DEFAULT gst_perf_debug
 
-#define DEFAULT_PRINT_ARM_LOAD    FALSE
+#define DEFAULT_PRINT_CPU_LOAD    FALSE
 #define DEFAULT_BITRATE_WINDOW_SIZE    0
 #define DEFAULT_BITRATE_INTERVAL    1000
 
@@ -58,6 +58,7 @@ enum
 {
   PROP_0,
   PROP_PRINT_ARM_LOAD,
+  PROP_PRINT_CPU_LOAD,
   PROP_BITRATE_WINDOW_SIZE,
   PROP_BITRATE_INTERVAL
 };
@@ -100,7 +101,7 @@ struct _GstPerf
   guint32 prev_cpu_idle;
 
   /* Properties */
-  gboolean print_arm_load;
+  gboolean print_cpu_load;
 };
 
 struct _GstPerfClass
@@ -154,8 +155,14 @@ gst_perf_class_init (GstPerfClass * klass)
   gobject_class->get_property = gst_perf_get_property;
 
   g_object_class_install_property (gobject_class, PROP_PRINT_ARM_LOAD,
-      g_param_spec_boolean ("print-arm-load", "Print arm load",
-          "Print the CPU load info", DEFAULT_PRINT_ARM_LOAD, G_PARAM_WRITABLE));
+      g_param_spec_boolean ("print-arm-load", "Print arm load (deprecated)",
+          "(deprecated) Print the CPU load info. Use print-cpu-load instead.",
+          DEFAULT_PRINT_CPU_LOAD, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, PROP_PRINT_CPU_LOAD,
+      g_param_spec_boolean ("print-cpu-load", "Print CPU load",
+          "Print the CPU load info.", DEFAULT_PRINT_CPU_LOAD,
+          G_PARAM_WRITABLE));
 
   g_object_class_install_property (gobject_class, PROP_BITRATE_WINDOW_SIZE,
       g_param_spec_uint ("bitrate-window-size",
@@ -194,7 +201,7 @@ gst_perf_init (GstPerf * perf)
 {
   gst_perf_clear (perf);
 
-  perf->print_arm_load = DEFAULT_PRINT_ARM_LOAD;
+  perf->print_cpu_load = DEFAULT_PRINT_CPU_LOAD;
   perf->bps_window_size = DEFAULT_BITRATE_WINDOW_SIZE;
   perf->bps_interval = DEFAULT_BITRATE_INTERVAL;
   perf->bps_running_interval = DEFAULT_BITRATE_INTERVAL;
@@ -216,8 +223,11 @@ gst_perf_set_property (GObject * object, guint property_id,
 
   switch (property_id) {
     case PROP_PRINT_ARM_LOAD:
+      GST_WARNING_OBJECT (object,
+          "print-arm-load is deprecated, use print-cpu-load instead!");
+    case PROP_PRINT_CPU_LOAD:
       GST_OBJECT_LOCK (perf);
-      perf->print_arm_load = g_value_get_boolean (value);
+      perf->print_cpu_load = g_value_get_boolean (value);
       GST_OBJECT_UNLOCK (perf);
       break;
     case PROP_BITRATE_WINDOW_SIZE:
@@ -423,7 +433,7 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     gdouble time_factor, fps;
     guint idx;
     gchar info[GST_PERF_MSG_MAX_SIZE];
-    gboolean print_arm_load;
+    gboolean print_cpu_load;
     gdouble bps, mean_bps;
 
     time_factor = 1.0 * diff / GST_SECOND;
@@ -455,10 +465,10 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     perf->prev_timestamp = time;
 
     GST_OBJECT_LOCK (perf);
-    print_arm_load = perf->print_arm_load;
+    print_cpu_load = perf->print_cpu_load;
     GST_OBJECT_UNLOCK (perf);
 
-    if (print_arm_load) {
+    if (print_cpu_load) {
       guint32 cpu_load;
       gst_perf_cpu_get_load (perf, &cpu_load);
       idx = g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,

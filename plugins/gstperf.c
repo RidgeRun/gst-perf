@@ -30,6 +30,13 @@
 
 #include "gstperf.h"
 
+#ifdef IS_MACOSX
+#  include <mach/mach_init.h>
+#  include <mach/mach_error.h>
+#  include <mach/mach_host.h>
+#  include <mach/vm_map.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 
@@ -138,8 +145,10 @@ static gdouble gst_perf_update_average (guint64 count, gdouble current,
 static double
 gst_perf_update_moving_average (guint64 window_size, gdouble old_average,
     gdouble new_sample, gdouble old_sample);
-
 static gboolean gst_perf_update_bps (void *data);
+static gboolean gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load);
+static guint32 gst_perf_compute_cpu (GstPerf * perf, guint32 idle,
+    guint32 total);
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
 
@@ -380,15 +389,58 @@ gst_perf_stop (GstBaseTransform * trans)
   return TRUE;
 }
 
+static guint32
+gst_perf_compute_cpu (GstPerf * self, guint32 current_idle,
+    guint32 current_total)
+{
+  guint32 busy = 0;
+  guint32 idle = 0;
+  guint32 total = 0;
+
+  g_return_val_if_fail (self, -1);
+
+  /* Calculate the CPU usage since last time we checked */
+  idle = current_idle - self->prev_cpu_idle;
+  total = current_total - self->prev_cpu_total;
+
+  /* Update the total and idle CPU for the next check */
+  self->prev_cpu_total = current_total;
+  self->prev_cpu_idle = current_idle;
+
+  /* Avoid a divison by zero */
+  if (0 == total) {
+    return 0;
+  }
+
+  /* - CPU usage is the fraction of time the processor spent busy:
+   * [0.0, 1.0].
+   *
+   * - We want to express this as a percentage [0% - 100%].
+   *
+   * - We want to avoid, when possible, using floating
+   * point operations (some SoC still don't have a FP unit).
+   *
+   * - Scaling to 1000 allows us round (nearest interger) by summing
+   * 5 and then scaling down back to 100 by dividing by
+   * 10. Othersise we would've lost the decimals due to integer
+   * truncating.
+   */
+  busy = total - idle;
+  return (1000 * busy / total + 5) / 10;
+}
+
+#ifdef IS_LINUX
 static gboolean
 gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 {
   gboolean cpu_load_found = FALSE;
   guint32 user, nice, sys, idle, iowait, irq, softirq, steal;
   guint32 total = 0;
-  guint32 diff_total, diff_idle;
   gchar name[4];
   FILE *fp;
+
+  g_return_val_if_fail (perf, FALSE);
+  g_return_val_if_fail (cpu_load, FALSE);
 
   /* Default value in case of failure */
   *cpu_load = -1;
@@ -420,24 +472,63 @@ gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 
   /*Calculate the total CPU time */
   total = user + nice + sys + idle + iowait + irq + softirq + steal;
-  /*Calculate the CPU usage since last time we checked */
-  diff_idle = idle - perf->prev_cpu_idle;
-  diff_total = total - perf->prev_cpu_total;
-  if (diff_total) {
-    /*Get a rounded result */
-    *cpu_load = (1000 * (diff_total - diff_idle) / diff_total + 5) / 10;
+
+  *cpu_load = gst_perf_compute_cpu (perf, idle, total);
+
+  return TRUE;
+
+cpu_failed:
+  GST_ERROR_OBJECT (perf, "Failed to get the CPU load");
+  return FALSE;
+}
+
+#elif IS_MACOSX
+static gboolean
+gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
+{
+  guint32 idle = 0;
+  guint32 total = 0;
+  host_cpu_load_info_data_t cpuinfo = { 0 };
+  mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
+
+  g_return_val_if_fail (perf, FALSE);
+  g_return_val_if_fail (cpu_load, FALSE);
+
+  /* Default value in case of failure */
+  *cpu_load = -1;
+
+  if (host_statistics (mach_host_self (), HOST_CPU_LOAD_INFO,
+          (host_info_t) & cpuinfo, &count) == KERN_SUCCESS) {
+    for (int i = 0; i < CPU_STATE_MAX; i++) {
+      total += cpuinfo.cpu_ticks[i];
+    }
+    idle = cpuinfo.cpu_ticks[CPU_STATE_IDLE];
   } else {
-    *cpu_load = 0;
+    goto cpu_failed;
   }
-  /*Remember the total and idle CPU for the next check */
-  perf->prev_cpu_total = total;
-  perf->prev_cpu_idle = idle;
+
+  *cpu_load = gst_perf_compute_cpu (perf, idle, total);
+
   return TRUE;
 
 cpu_failed:
   GST_ERROR ("Failed to get the CPU load");
   return FALSE;
 }
+
+#else /* Unknown OS */
+static gboolean
+gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
+{
+  g_return_val_if_fail (perf, FALSE);
+  g_return_val_if_fail (cpu_load, FALSE);
+
+  *cpu_load = -1;
+
+  /* Not really an error, we just don't know how to measure CPU on this OS */
+  return TRUE;
+}
+#endif
 
 static GstFlowReturn
 gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)

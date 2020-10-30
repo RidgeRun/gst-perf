@@ -63,6 +63,21 @@ PKG_CHECK_MODULES(GST, [
   ])
 ])
 
+dnl check for host OS
+AC_CANONICAL_HOST
+
+case "${host_os}" in
+    linux*)
+	AC_DEFINE([IS_LINUX], [1], [Host OS is Linux])
+        ;;
+    cygwin*|mingw*)
+        AC_DEFINE([IS_WINDOWS], [1], [Host OS is Windows])
+        ;;
+    darwin*)
+        AC_DEFINE([IS_MACOSX], [1], [Host OS is Mac OSX])
+        ;;
+esac
+
 dnl check if compiler understands -Wall (if yes, add -Wall to GST_CFLAGS)
 AC_MSG_CHECKING([to see if compiler understands -Wall])
 save_CFLAGS="$CFLAGS"

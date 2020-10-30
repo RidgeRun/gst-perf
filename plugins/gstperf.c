@@ -250,9 +250,27 @@ void
 gst_perf_get_property (GObject * object, guint property_id,
     GValue * value, GParamSpec * pspec)
 {
-  /* GstPerf *perf = GST_PERF (object); */
+  GstPerf *perf = GST_PERF (object);
 
   switch (property_id) {
+    case PROP_PRINT_ARM_LOAD:
+      GST_WARNING_OBJECT (object,
+          "print-arm-load is deprecated, use print-cpu-load instead!");
+    case PROP_PRINT_CPU_LOAD:
+      GST_OBJECT_LOCK (perf);
+      g_value_set_boolean (value, perf->print_cpu_load);
+      GST_OBJECT_UNLOCK (perf);
+      break;
+    case PROP_BITRATE_WINDOW_SIZE:
+      GST_OBJECT_LOCK (perf);
+      g_value_set_uint (value, perf->bps_window_size);
+      GST_OBJECT_UNLOCK (perf);
+      break;
+    case PROP_BITRATE_INTERVAL:
+      GST_OBJECT_LOCK (perf);
+      g_value_set_uint (value, perf->bps_interval);
+      GST_OBJECT_UNLOCK (perf);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;

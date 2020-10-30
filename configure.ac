@@ -1,8 +1,10 @@
 dnl required version of autoconf
 AC_PREREQ([2.53])
 
-dnl TODO: fill in your package name and package version here
-AC_INIT([gst-perf],[0.2.4])
+dnl package name and package version
+dnl NOTE: whenever you change this, also update debian/changelog
+dnl (e.g., run `dch -i`).
+AC_INIT([gst-perf],[0.3.0])
 
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.0.0
@@ -60,6 +62,21 @@ PKG_CHECK_MODULES(GST, [
       or similar. The minimum version required is $GST_REQUIRED.
   ])
 ])
+
+dnl check for host OS
+AC_CANONICAL_HOST
+
+case "${host_os}" in
+    linux*)
+	AC_DEFINE([IS_LINUX], [1], [Host OS is Linux])
+        ;;
+    cygwin*|mingw*)
+        AC_DEFINE([IS_WINDOWS], [1], [Host OS is Windows])
+        ;;
+    darwin*)
+        AC_DEFINE([IS_MACOSX], [1], [Host OS is Mac OSX])
+        ;;
+esac
 
 dnl check if compiler understands -Wall (if yes, add -Wall to GST_CFLAGS)
 AC_MSG_CHECKING([to see if compiler understands -Wall])

@@ -445,8 +445,22 @@ gst_perf_cpu_get_load_linux (GstPerf * perf, guint32 * cpu_load)
   diff_idle = idle - perf->prev_cpu_idle;
   diff_total = total - perf->prev_cpu_total;
   if (diff_total) {
-    /*Get a rounded result */
-    *cpu_load = (1000 * (diff_total - diff_idle) / diff_total + 5) / 10;
+    /* - CPU usage is the fraction of time the processor spent busy:
+     * [0.0, 1.0].
+     *
+     * - We want to express this as a percentage [0% - 100%].
+     *
+     * - We want to avoid, when possible, using floating
+     * point operations (some SoC still don't have a FP unit).
+     *
+     * - Scaling to 1000 allows us round (nearest interger) by summing
+     * 5 and then scaling down back to 100 by dividing by
+     * 10. Othersise we would've lost the decimals due to integer
+     * truncating.
+     */
+    guint32 time_busy = diff_total - diff_idle;
+    guint32 time_total = diff_total;
+    *cpu_load = (1000 * time_busy / time_total + 5) / 10;
   } else {
     *cpu_load = 0;
   }

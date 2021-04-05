@@ -67,7 +67,8 @@ enum
   PROP_PRINT_ARM_LOAD,
   PROP_PRINT_CPU_LOAD,
   PROP_BITRATE_WINDOW_SIZE,
-  PROP_BITRATE_INTERVAL
+  PROP_BITRATE_INTERVAL,
+  PROP_LAST_INFO
 };
 
 /* GstPerf signals and args */
@@ -109,6 +110,7 @@ struct _GstPerf
 
   /* Properties */
   gboolean print_cpu_load;
+  gchar *last_info;
 };
 
 struct _GstPerfClass
@@ -128,6 +130,7 @@ G_DEFINE_TYPE (GstPerf, gst_perf, GST_TYPE_BASE_TRANSFORM);
 #define GST_PERF_MS_PER_S 1000.0
 
 /* prototypes */
+static void gst_perf_finalize (GObject * object);
 static void gst_perf_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec);
 static void gst_perf_get_property (GObject * object, guint property_id,
@@ -160,6 +163,7 @@ gst_perf_class_init (GstPerfClass * klass)
   GstBaseTransformClass *base_transform_class =
       GST_BASE_TRANSFORM_CLASS (klass);
 
+  gobject_class->finalize = gst_perf_finalize;
   gobject_class->set_property = gst_perf_set_property;
   gobject_class->get_property = gst_perf_get_property;
 
@@ -184,6 +188,11 @@ gst_perf_class_init (GstPerfClass * klass)
           "Interval between bitrate calculation in ms",
           "Interval between two calculations in ms, this will run even when no buffers are received",
           0, G_MAXINT, DEFAULT_BITRATE_INTERVAL, G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class, PROP_LAST_INFO,
+      g_param_spec_string ("last-info", "Last info",
+          "A string containing the performance information posted to the GStreamer bus (timestamp, bps, mean_bps, fps, mean_fps)",
+          NULL, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   gst_perf_signals[SIGNAL_ON_BITRATE] =
       g_signal_new ("on-bitrate", G_TYPE_FROM_CLASS (klass),
@@ -215,6 +224,7 @@ gst_perf_init (GstPerf * perf)
   perf->bps_interval = DEFAULT_BITRATE_INTERVAL;
   perf->bps_running_interval = DEFAULT_BITRATE_INTERVAL;
   perf->bps_window_buffer_current = 0;
+  perf->last_info = g_strdup("");
 
   g_mutex_init (&perf->byte_count_mutex);
   g_mutex_init (&perf->bps_mutex);
@@ -222,6 +232,16 @@ gst_perf_init (GstPerf * perf)
 
   gst_base_transform_set_gap_aware (GST_BASE_TRANSFORM_CAST (perf), TRUE);
   gst_base_transform_set_passthrough (GST_BASE_TRANSFORM_CAST (perf), TRUE);
+}
+
+static void
+gst_perf_finalize (GObject * object)
+{
+  GstPerf *perf = GST_PERF (object);
+
+  g_free (perf->last_info);
+
+  G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 void
@@ -278,6 +298,11 @@ gst_perf_get_property (GObject * object, guint property_id,
     case PROP_BITRATE_INTERVAL:
       GST_OBJECT_LOCK (perf);
       g_value_set_uint (value, perf->bps_interval);
+      GST_OBJECT_UNLOCK (perf);
+      break;
+    case PROP_LAST_INFO:
+      GST_OBJECT_LOCK (perf);
+      g_value_set_string (value, perf->last_info);
       GST_OBJECT_UNLOCK (perf);
       break;
     default:
@@ -588,6 +613,11 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         (GstElement *) perf,
         gst_message_new_info ((GstObject *) perf, perf->error,
             (const gchar *) info));
+
+    GST_OBJECT_LOCK (perf);
+    g_free (perf->last_info);
+    perf->last_info = g_strdup(info);
+    GST_OBJECT_UNLOCK (perf);
 
     GST_INFO_OBJECT (perf, "%s", info);
   }

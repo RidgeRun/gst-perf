@@ -1,11 +1,11 @@
-Source: gst-perf
+Source: libgstperf
 Priority: optional
 Maintainer: RidgeRun Developers <support@ridgerun.com>
 Build-Depends: debhelper (>= 8.0.0), devscripts
 Standards-Version: 4.1.0
 Section: utils
 
-Package: gst-perf
+Package: libgstperf
 Priority: optional
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}

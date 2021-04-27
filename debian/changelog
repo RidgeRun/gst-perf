@@ -1,4 +1,10 @@
-gst-perf (0.3.0-1) UNRELEASED; urgency=medium
+libgstperf (0.4.0-1)  UNRELEASED; urgency=medium
+
+  * Add last info property
+
+ -- RidgeRun Engineering <support@ridgerun.com>  Tue, 27 Apr 2021 18:00:00 -0600
+
+libgstperf (0.3.0-1) UNRELEASED; urgency=medium
 
   * Initial .deb release
 

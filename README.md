@@ -6,8 +6,8 @@ A GStreamer element to measure framerate, bitrate and CPU usage
 
 On Debian-based systems:
 ```bash
-./autogen
-./configure --prefix /usr/ --libdir /usr/lib/x86_64-linux-gnu/
+./autogen.sh
+./configure --prefix /usr/ --libdir /usr/lib/$(uname -m)-linux-gnu/
 make
 sudo make install
 ```

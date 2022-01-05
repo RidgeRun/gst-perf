@@ -4,7 +4,7 @@ AC_PREREQ([2.53])
 dnl package name and package version
 dnl NOTE: whenever you change this, also update debian/changelog
 dnl (e.g., run `dch -i`).
-AC_INIT([gst-perf],[0.3.0])
+AC_INIT([gst-perf],[0.3.1])
 
 dnl required versions of gstreamer and plugins-base
 GST_REQUIRED=1.0.0

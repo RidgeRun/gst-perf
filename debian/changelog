@@ -1,3 +1,10 @@
+gst-perf (0.3.1-1) UNRELEASED; urgency=medium
+
+  * Fix readme
+
+ -- RidgeRun Engineering <support@ridgerun.com>  Wed, 05 Jan 2021 11:17:00  -0600
+
+
 gst-perf (0.3.0-1) UNRELEASED; urgency=medium
 
   * Initial .deb release

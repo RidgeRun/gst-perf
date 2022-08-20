@@ -1,4 +1,10 @@
-libgstperf (0.4.0-1)  UNRELEASED; urgency=medium
+libgstperf (0.4.0-2) focal; urgency=medium
+
+  * Update debian
+
+ -- RidgeRun Engineering <support@ridgerun.com>  Fri, 19 Aug 2022 21:37:48 -0600
+
+libgstperf (0.4.0-1) UNRELEASED; urgency=medium
 
   * Add last info property
 

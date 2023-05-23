@@ -22,7 +22,7 @@ framerate, bitrate and CPU usage measurements at the output of the
 encoder:
 
 ```bash
-gst-launch-1.0 -e videotestsrc ! x264enc ! perf ! qtmux print-arm-load=true ! filesink location=test.mp4
+gst-launch-1.0 -e videotestsrc ! x264enc ! perf print-arm-load=true ! qtmux ! filesink location=test.mp4
 ```
 
 ## Building a Debian package

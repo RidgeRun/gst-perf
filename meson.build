@@ -23,11 +23,10 @@ gst_req        = '>= 1.0.0'
 # Find external dependencies
 gst_dep       = dependency('gstreamer-1.0',       version : gst_req)
 gst_base_dep  = dependency('gstreamer-base-1.0',  version : gst_req)
-gst_controller_dep = dependency('gstreamer-controller-1.0', version : gst_req)
 
 ## Dependencies
 # Define plugin dependencies
-plugin_deps = [gst_dep, gst_base_dep, gst_controller_dep]
+plugin_deps = [gst_dep, gst_base_dep]
 
 # Define compiler args and include directories
 c_args = ['-DHAVE_CONFIG_H']

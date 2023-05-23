@@ -3,10 +3,6 @@ gst_plugin_sources = [
   'gstperf.c',
 ]
 
-gst_plugin_headers = [
-  'gstperf.h',
-]
-
 # Build plugin library
 gst_plugin = library('gstperf',
   gst_plugin_sources,

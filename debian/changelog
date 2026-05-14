@@ -1,9 +1,9 @@
-libgstperf (0.4.0-3) UNRELEASED; urgency=medium
+libgstperf (0.4.0-3) noble; urgency=medium
 
   * Switch the Debian package to the Meson build system.
   * Sync package version metadata with the Meson project version.
 
- -- RidgeRun Engineering <support@ridgerun.com>  Thu, 14 May 2026 00:00:00 -0600
+ -- RidgeRun Engineering <support@ridgerun.com>  Thu, 14 May 2026 00:42:05 -0600
 
 libgstperf (0.4.0-1) UNRELEASED; urgency=medium
 

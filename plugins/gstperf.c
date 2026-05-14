@@ -30,7 +30,7 @@
 
 #include "gstperf.h"
 
-#ifdef IS_MACOSX
+#if IS_MACOSX
 #  include <mach/mach_init.h>
 #  include <mach/mach_error.h>
 #  include <mach/mach_host.h>
@@ -414,47 +414,7 @@ gst_perf_stop (GstBaseTransform * trans)
   return TRUE;
 }
 
-static guint32
-gst_perf_compute_cpu (GstPerf * self, guint32 current_idle,
-    guint32 current_total)
-{
-  guint32 busy = 0;
-  guint32 idle = 0;
-  guint32 total = 0;
-
-  g_return_val_if_fail (self, -1);
-
-  /* Calculate the CPU usage since last time we checked */
-  idle = current_idle - self->prev_cpu_idle;
-  total = current_total - self->prev_cpu_total;
-
-  /* Update the total and idle CPU for the next check */
-  self->prev_cpu_total = current_total;
-  self->prev_cpu_idle = current_idle;
-
-  /* Avoid a divison by zero */
-  if (0 == total) {
-    return 0;
-  }
-
-  /* - CPU usage is the fraction of time the processor spent busy:
-   * [0.0, 1.0].
-   *
-   * - We want to express this as a percentage [0% - 100%].
-   *
-   * - We want to avoid, when possible, using floating
-   * point operations (some SoC still don't have a FP unit).
-   *
-   * - Scaling to 1000 allows us round (nearest interger) by summing
-   * 5 and then scaling down back to 100 by dividing by
-   * 10. Othersise we would've lost the decimals due to integer
-   * truncating.
-   */
-  busy = total - idle;
-  return (1000 * busy / total + 5) / 10;
-}
-
-#ifdef IS_LINUX
+#if IS_LINUX
 static gboolean
 gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
 {
@@ -554,6 +514,46 @@ gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load)
   return TRUE;
 }
 #endif
+
+static guint32
+gst_perf_compute_cpu (GstPerf * self, guint32 current_idle,
+    guint32 current_total)
+{
+  guint32 busy = 0;
+  guint32 idle = 0;
+  guint32 total = 0;
+
+  g_return_val_if_fail (self, -1);
+
+  /* Calculate the CPU usage since last time we checked */
+  idle = current_idle - self->prev_cpu_idle;
+  total = current_total - self->prev_cpu_total;
+
+  /* Update the total and idle CPU for the next check */
+  self->prev_cpu_total = current_total;
+  self->prev_cpu_idle = current_idle;
+
+  /* Avoid a divison by zero */
+  if (0 == total) {
+    return 0;
+  }
+
+  /* - CPU usage is the fraction of time the processor spent busy:
+   * [0.0, 1.0].
+   *
+   * - We want to express this as a percentage [0% - 100%].
+   *
+   * - We want to avoid, when possible, using floating
+   * point operations (some SoC still don't have a FP unit).
+   *
+   * - Scaling to 1000 allows us round (nearest interger) by summing
+   * 5 and then scaling down back to 100 by dividing by
+   * 10. Othersise we would've lost the decimals due to integer
+   * truncating.
+   */
+  busy = total - idle;
+  return (1000 * busy / total + 5) / 10;
+}
 
 static GstFlowReturn
 gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)

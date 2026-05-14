@@ -106,6 +106,11 @@ endif
 
 plugin_deps += deepstream_dep
 
+# Keep the same OS feature macros the autotools build used.
+cdata.set10('IS_LINUX', host_machine.system() == 'linux')
+cdata.set10('IS_WINDOWS', host_machine.system() == 'windows')
+cdata.set10('IS_MACOSX', host_machine.system() == 'darwin')
+
 # Plugin information 
 origin_url='http://www.ridgerun.com/'
 plugin_url='https://github.com/RidgeRun/gst-perf'

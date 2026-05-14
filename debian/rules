@@ -5,5 +5,14 @@
 
 export DH_ALWAYS_EXCLUDE=*.a:*.la
 
+override_dh_autoreconf:
+	:
+
+override_dh_update_autotools_config:
+	:
+
+override_dh_auto_configure:
+	meson setup obj-$(DEB_HOST_GNU_TYPE) --wrap-mode=nodownload --buildtype=plain --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libdir=lib/$(DEB_HOST_MULTIARCH)
+
 %:
 	dh $@ --buildsystem=meson

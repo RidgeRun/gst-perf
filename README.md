@@ -6,10 +6,9 @@ A GStreamer element to measure framerate, bitrate and CPU usage
 
 On Debian-based systems:
 ```bash
-./autogen.sh
-./configure --prefix /usr/ --libdir /usr/lib/x86_64-linux-gnu/
-make
-sudo make install
+meson setup build --prefix=/usr
+ninja -C build
+sudo ninja -C build install
 ```
 
 Configure options may vary according to your specific system.
@@ -28,7 +27,7 @@ gst-launch-1.0 -e videotestsrc ! x264enc ! perf print-arm-load=true ! qtmux ! fi
 ## Building a Debian package
 
 1. Install build dependencies (one-time step):
-   `sudo apt install -y debhelper devscripts`
+   `sudo apt install -y devscripts debhelper meson ninja-build pkg-config libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev`
 2. After cloning, run `dpkg-buildpackage -us -uc` in the source directory.
    The package will be left in the parent directory.
 

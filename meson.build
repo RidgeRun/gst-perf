@@ -1,5 +1,5 @@
 project('gst-perf', ['c'],
-  version : '0.10.0',
+  version : '0.4.0',
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()

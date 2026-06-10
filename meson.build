@@ -102,6 +102,14 @@ else
     cdata.set('GST_LEVEL_DEFAULT', 'GST_LEVEL_NONE')
 endif
 
+if host_machine.system() == 'linux'
+  cdata.set('IS_LINUX', 1)
+elif host_machine.system() == 'darwin'
+  cdata.set('IS_MACOSX', 1)
+elif host_machine.system() == 'windows'
+  cdata.set('IS_WINDOWS', 1)
+endif
+
 # GStreamer package name and origin url
 gst_package_name = get_option('package-name')
 if gst_package_name == ''
@@ -187,3 +195,4 @@ configure_file(output : 'config.h', configuration : cdata)
 
 # Enter to each subdirectory and execute the meson.build
 subdir('plugins')
+subdir('examples')

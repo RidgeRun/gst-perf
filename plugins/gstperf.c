@@ -621,9 +621,9 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     }
 
     gst_element_post_message (
-        (GstElement *) perf,
-        gst_message_new_info_with_details ((GstObject *) perf, perf->error,
-            (const gchar *) info, details));
+        GST_ELEMENT_CAST (perf),
+        gst_message_new_info_with_details (GST_OBJECT_CAST (perf),
+            perf->error, (const gchar *) info, details));
 
     GST_OBJECT_LOCK (perf);
     g_free (perf->last_info);

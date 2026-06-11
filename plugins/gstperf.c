@@ -152,6 +152,8 @@ static gboolean gst_perf_update_bps (void *data);
 static gboolean gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load);
 static guint32 gst_perf_compute_cpu (GstPerf * perf, guint32 idle,
     guint32 total);
+static void gst_perf_post_info_message (GstPerf * perf, const gchar * info,
+    GstStructure * details);
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
 
@@ -367,6 +369,25 @@ gst_perf_update_bps (void *data)
   g_signal_emit_by_name (perf, "on-bitrate", mean_bps);
 
   return TRUE;
+}
+
+static void
+gst_perf_post_info_message (GstPerf * perf, const gchar * info,
+    GstStructure * details)
+{
+  g_return_if_fail (perf);
+  g_return_if_fail (info);
+  g_return_if_fail (details);
+
+#if GST_CHECK_VERSION (1, 10, 0)
+  gst_element_post_message (GST_ELEMENT_CAST (perf),
+      gst_message_new_info_with_details (GST_OBJECT_CAST (perf), perf->error,
+          info, details));
+#else
+  gst_structure_free (details);
+  gst_element_post_message (GST_ELEMENT_CAST (perf),
+      gst_message_new_info (GST_OBJECT_CAST (perf), perf->error, info));
+#endif
 }
 
 static gboolean
@@ -620,10 +641,7 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
       gst_structure_set (details, "cpu", G_TYPE_INT, (gint) cpu_load, NULL);
     }
 
-    gst_element_post_message (
-        GST_ELEMENT_CAST (perf),
-        gst_message_new_info_with_details (GST_OBJECT_CAST (perf),
-            perf->error, (const gchar *) info, details));
+    gst_perf_post_info_message (perf, (const gchar *) info, details);
 
     GST_OBJECT_LOCK (perf);
     g_free (perf->last_info);

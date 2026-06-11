@@ -24,6 +24,7 @@ typedef struct
   GMainLoop *loop;
 } AppData;
 
+#if GST_CHECK_VERSION (1, 10, 0)
 static void
 print_perf_info (GstMessage * message)
 {
@@ -69,6 +70,24 @@ print_perf_info (GstMessage * message)
 
   g_print ("\n");
 }
+#else
+static void
+print_perf_info (GstMessage * message)
+{
+  GError *error = NULL;
+  gchar *debug = NULL;
+  const gchar *printable = NULL;
+
+  gst_message_parse_info (message, &error, &debug);
+
+  printable = (debug != NULL) ? debug :
+      ((error != NULL) ? error->message : "(no debug)");
+  g_print ("%s\n", printable);
+
+  g_clear_error (&error);
+  g_free (debug);
+}
+#endif
 
 static gboolean
 on_bus_message (GstBus * bus, GstMessage * message, gpointer user_data)

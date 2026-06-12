@@ -75,6 +75,31 @@ endforeach
 # Create an empty configuration object to set config.h information
 cdata = configuration_data()
 
+deepstream_dir = get_option('deepstream-dir')
+deepstream_libdir = join_paths(deepstream_dir, 'lib')
+deepstream_incdir = include_directories(join_paths(deepstream_dir, 'sources/includes'))
+
+nvds_meta_dep = cc.find_library('nvds_meta',
+    dirs: [deepstream_libdir],
+    has_headers: ['nvdsmeta.h'],
+    header_include_directories: [deepstream_incdir])
+nvdsgst_meta_dep = cc.find_library('nvdsgst_meta',
+    dirs: [deepstream_libdir],
+    has_headers: ['gstnvdsmeta.h'],
+    header_include_directories: [deepstream_incdir])
+
+if nvds_meta_dep.found() and nvdsgst_meta_dep.found()
+  deepstream_dep = declare_dependency(
+    dependencies: [nvds_meta_dep, nvdsgst_meta_dep],
+    include_directories: deepstream_incdir,
+  )
+  cdata.set('HAVE_DEEPSTREAM', 1)
+else
+  deepstream_dep = declare_dependency()
+endif
+
+plugin_deps += deepstream_dep
+
 # Plugin information 
 origin_url='http://www.ridgerun.com/'
 plugin_url='https://github.com/RidgeRun/gst-perf'

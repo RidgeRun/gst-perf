@@ -63,6 +63,45 @@ PKG_CHECK_MODULES(GST, [
   ])
 ])
 
+dnl optional DeepStream support for batched frame-rate reporting
+AC_ARG_WITH([deepstream-dir],
+  [AS_HELP_STRING([--with-deepstream-dir=DIR],
+    [root directory of DeepStream installation])],
+  [DEEPSTREAM_PREFIX="$withval"],
+  [DEEPSTREAM_PREFIX="/opt/nvidia/deepstream/deepstream"])
+
+DEEPSTREAM_CFLAGS=""
+DEEPSTREAM_LIBS=""
+have_deepstream=no
+
+deepstream_save_CPPFLAGS="$CPPFLAGS"
+deepstream_save_LDFLAGS="$LDFLAGS"
+deepstream_save_LIBS="$LIBS"
+
+CPPFLAGS="$CPPFLAGS -I$DEEPSTREAM_PREFIX/sources/includes"
+LDFLAGS="$LDFLAGS -L$DEEPSTREAM_PREFIX/lib"
+
+AC_CHECK_HEADERS([gstnvdsmeta.h], [
+  AC_CHECK_LIB([nvds_meta], [nvds_acquire_meta_lock], [
+    AC_CHECK_LIB([nvdsgst_meta], [gst_buffer_get_nvds_batch_meta], [
+      DEEPSTREAM_CFLAGS="-I$DEEPSTREAM_PREFIX/sources/includes"
+      DEEPSTREAM_LIBS="-L$DEEPSTREAM_PREFIX/lib -lnvdsgst_meta -lnvds_meta"
+      have_deepstream=yes
+    ], [], [-lnvds_meta])
+  ])
+])
+
+CPPFLAGS="$deepstream_save_CPPFLAGS"
+LDFLAGS="$deepstream_save_LDFLAGS"
+LIBS="$deepstream_save_LIBS"
+
+AS_IF([test "x$have_deepstream" = "xyes"], [
+  AC_DEFINE([HAVE_DEEPSTREAM], [1], [Define if DeepStream support is available])
+])
+
+AC_SUBST(DEEPSTREAM_CFLAGS)
+AC_SUBST(DEEPSTREAM_LIBS)
+
 dnl check for host OS
 AC_CANONICAL_HOST
 

@@ -14,6 +14,12 @@ sudo make install
 
 Configure options may vary according to your specific system.
 
+If the DeepStream development headers and libraries are available, the
+`perf` element also reports `ds-fps` for batched buffers. The default
+SDK path is `/opt/nvidia/deepstream/deepstream`; use `deepstream-dir`
+with Meson, or `--with-deepstream-dir` with Autotools for nonstandard
+installs.
+
 ## Usage
 
 Just link in the `perf` element wherever you want to take the

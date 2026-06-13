@@ -78,10 +78,10 @@ deepstream_save_CPPFLAGS="$CPPFLAGS"
 deepstream_save_LDFLAGS="$LDFLAGS"
 deepstream_save_LIBS="$LIBS"
 
-CPPFLAGS="$CPPFLAGS -I$DEEPSTREAM_PREFIX/sources/includes"
+CPPFLAGS="$CPPFLAGS $GST_CFLAGS -I$DEEPSTREAM_PREFIX/sources/includes"
 LDFLAGS="$LDFLAGS -L$DEEPSTREAM_PREFIX/lib"
 
-AC_CHECK_HEADERS([gstnvdsmeta.h], [
+AC_CHECK_HEADERS([nvdsmeta.h], [
   AC_CHECK_LIB([nvds_meta], [nvds_acquire_meta_lock], [
     AC_CHECK_LIB([nvdsgst_meta], [gst_buffer_get_nvds_batch_meta], [
       DEEPSTREAM_CFLAGS="-I$DEEPSTREAM_PREFIX/sources/includes"

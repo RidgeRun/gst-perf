@@ -77,23 +77,28 @@ cdata = configuration_data()
 
 deepstream_dir = get_option('deepstream-dir')
 deepstream_libdir = join_paths(deepstream_dir, 'lib')
-deepstream_incdir = include_directories(join_paths(deepstream_dir, 'sources/includes'))
 
 nvds_meta_dep = cc.find_library('nvds_meta',
     dirs: [deepstream_libdir],
-    has_headers: ['nvdsmeta.h'],
-    header_include_directories: [deepstream_incdir])
+    required: false)
 nvdsgst_meta_dep = cc.find_library('nvdsgst_meta',
     dirs: [deepstream_libdir],
-    has_headers: ['gstnvdsmeta.h'],
-    header_include_directories: [deepstream_incdir])
+    required: false)
 
 if nvds_meta_dep.found() and nvdsgst_meta_dep.found()
-  deepstream_dep = declare_dependency(
-    dependencies: [nvds_meta_dep, nvdsgst_meta_dep],
-    include_directories: deepstream_incdir,
-  )
-  cdata.set('HAVE_DEEPSTREAM', 1)
+  deepstream_include_dir = join_paths(deepstream_dir, 'sources/includes')
+  deepstream_incdir = include_directories(deepstream_include_dir)
+
+  if cc.has_header('gstnvdsmeta.h',
+      include_directories : deepstream_incdir)
+    deepstream_dep = declare_dependency(
+      dependencies: [nvds_meta_dep, nvdsgst_meta_dep],
+      include_directories: deepstream_incdir,
+    )
+    cdata.set('HAVE_DEEPSTREAM', 1)
+  else
+    deepstream_dep = declare_dependency()
+  endif
 else
   deepstream_dep = declare_dependency()
 endif

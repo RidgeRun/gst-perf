@@ -152,6 +152,8 @@ static gboolean gst_perf_update_bps (void *data);
 static gboolean gst_perf_cpu_get_load (GstPerf * perf, guint32 * cpu_load);
 static guint32 gst_perf_compute_cpu (GstPerf * perf, guint32 idle,
     guint32 total);
+static void gst_perf_post_info_message (GstPerf * perf, const gchar * info,
+    GstStructure * details);
 
 static guint gst_perf_signals[LAST_SIGNAL] = { 0 };
 
@@ -369,6 +371,25 @@ gst_perf_update_bps (void *data)
   return TRUE;
 }
 
+static void
+gst_perf_post_info_message (GstPerf * perf, const gchar * info,
+    GstStructure * details)
+{
+  g_return_if_fail (perf);
+  g_return_if_fail (info);
+  g_return_if_fail (details);
+
+#if GST_CHECK_VERSION (1, 10, 0)
+  gst_element_post_message (GST_ELEMENT_CAST (perf),
+      gst_message_new_info_with_details (GST_OBJECT_CAST (perf), perf->error,
+          info, details));
+#else
+  gst_structure_free (details);
+  gst_element_post_message (GST_ELEMENT_CAST (perf),
+      gst_message_new_info (GST_OBJECT_CAST (perf), perf->error, info));
+#endif
+}
+
 static gboolean
 gst_perf_start (GstBaseTransform * trans)
 {
@@ -569,6 +590,7 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     gchar info[GST_PERF_MSG_MAX_SIZE];
     gboolean print_cpu_load;
     gdouble bps, mean_bps;
+    GstStructure *details = NULL;
 
     time_factor = 1.0 * diff / GST_SECOND;
 
@@ -595,6 +617,15 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         GST_OBJECT_NAME (perf), GST_TIME_ARGS (time), bps, mean_bps,
         fps, perf->fps);
 
+    details = gst_structure_new_empty ("perf");
+    gst_structure_set (details,
+        "timestamp", GST_TYPE_CLOCK_TIME, time,
+        "bps", G_TYPE_DOUBLE, bps,
+        "mean_bps", G_TYPE_DOUBLE, mean_bps,
+        "fps", G_TYPE_DOUBLE, fps,
+        "mean_fps", G_TYPE_DOUBLE, perf->fps,
+        NULL);
+
     gst_perf_reset (perf);
     perf->prev_timestamp = time;
 
@@ -607,12 +638,10 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
       gst_perf_cpu_get_load (perf, &cpu_load);
       idx = g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
           "; cpu: %d; ", cpu_load);
+      gst_structure_set (details, "cpu", G_TYPE_INT, (gint) cpu_load, NULL);
     }
 
-    gst_element_post_message (
-        (GstElement *) perf,
-        gst_message_new_info ((GstObject *) perf, perf->error,
-            (const gchar *) info));
+    gst_perf_post_info_message (perf, (const gchar *) info, details);
 
     GST_OBJECT_LOCK (perf);
     g_free (perf->last_info);

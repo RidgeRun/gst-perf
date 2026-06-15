@@ -29,6 +29,7 @@ tools/gst-perf
 *~
 \#*
 *.swp
+examples/perf-info-example
 
 # dpkg-buildpackage output and other release files
 *.debhelper.log

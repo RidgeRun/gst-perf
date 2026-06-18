@@ -1,5 +1,5 @@
 project('gst-perf', ['c'],
-  version : '0.10.0',
+  version : '0.4.0',
   meson_version : '>= 0.50',)
 
 project_name = meson.project_name()
@@ -74,6 +74,11 @@ endforeach
 
 # Create an empty configuration object to set config.h information
 cdata = configuration_data()
+
+# Keep the same OS feature macros the autotools build used.
+cdata.set10('IS_LINUX', host_machine.system() == 'linux')
+cdata.set10('IS_WINDOWS', host_machine.system() == 'windows')
+cdata.set10('IS_MACOSX', host_machine.system() == 'darwin')
 
 # Plugin information 
 origin_url='http://www.ridgerun.com/'

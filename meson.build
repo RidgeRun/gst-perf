@@ -90,6 +90,7 @@ if nvds_meta_dep.found() and nvdsgst_meta_dep.found()
   deepstream_incdir = include_directories(deepstream_include_dir)
 
   if cc.has_header('gstnvdsmeta.h',
+      dependencies : gst_dep,
       include_directories : deepstream_incdir)
     deepstream_dep = declare_dependency(
       dependencies: [nvds_meta_dep, nvdsgst_meta_dep],

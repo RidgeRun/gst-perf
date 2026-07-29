@@ -646,8 +646,10 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         fps, perf->fps);
 
 #ifdef HAVE_DEEPSTREAM
-    idx += g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
-        "; ds-fps: %0.03f", ds_fps);
+    if (idx < GST_PERF_MSG_MAX_SIZE) {
+      idx += g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
+          "; ds-fps: %0.03f", ds_fps);
+    }
 #endif
 
     details = gst_structure_new_empty ("perf");
@@ -672,8 +674,10 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     if (print_cpu_load) {
       guint32 cpu_load;
       gst_perf_cpu_get_load (perf, &cpu_load);
-      idx = g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
-          "; cpu: %d; ", cpu_load);
+      if (idx < GST_PERF_MSG_MAX_SIZE) {
+        idx += g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
+            "; cpu: %d; ", cpu_load);
+      }
       gst_structure_set (details, "cpu", G_TYPE_INT, (gint) cpu_load, NULL);
     }
 

@@ -21,7 +21,9 @@
  *
  * Perf plugin can be used to capture pipeline performance data.  Each
  * second perf plugin sends frames per second and bits per second data
- * using gst_element_post_message.
+ * using gst_element_post_message. When DeepStream batch metadata is
+ * available at build time, it also reports the batched frame rate as
+ * ds-fps.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -39,6 +41,10 @@
 
 #include <stdio.h>
 #include <string.h>
+
+#ifdef HAVE_DEEPSTREAM
+#include <gstnvdsmeta.h>
+#endif
 
 /* pad templates */
 static GstStaticPadTemplate gst_perf_src_template =
@@ -90,6 +96,7 @@ struct _GstPerf
   gdouble fps;
   guint32 frame_count;
   guint64 frame_count_total;
+  guint32 ds_frame_count;
 
   gdouble bps;
   gdouble mean_bps;
@@ -193,7 +200,11 @@ gst_perf_class_init (GstPerfClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_LAST_INFO,
       g_param_spec_string ("last-info", "Last info",
+#ifdef HAVE_DEEPSTREAM
+          "A string containing the performance information posted to the GStreamer bus (timestamp, bps, mean_bps, fps, mean_fps, ds-fps)",
+#else
           "A string containing the performance information posted to the GStreamer bus (timestamp, bps, mean_bps, fps, mean_fps)",
+#endif
           NULL, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   gst_perf_signals[SIGNAL_ON_BITRATE] =
@@ -582,10 +593,23 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
   GstPerf *perf = GST_PERF (trans);
   GstClockTime time = gst_util_get_timestamp ();
   GstClockTime diff = GST_CLOCK_DIFF (perf->prev_timestamp, time);
+#ifdef HAVE_DEEPSTREAM
+  guint ds_frame_count = 0;
+  NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta (buf);
+
+  if (batch_meta != NULL) {
+    nvds_acquire_meta_lock (batch_meta);
+    ds_frame_count = batch_meta->num_frames_in_batch;
+    nvds_release_meta_lock (batch_meta);
+  }
+#endif
 
   if (!GST_CLOCK_TIME_IS_VALID (perf->prev_timestamp) ||
       (GST_CLOCK_TIME_IS_VALID (time) && diff >= GST_SECOND)) {
     gdouble time_factor, fps;
+#ifdef HAVE_DEEPSTREAM
+    gdouble ds_fps;
+#endif
     guint idx;
     gchar info[GST_PERF_MSG_MAX_SIZE];
     gboolean print_cpu_load;
@@ -602,6 +626,10 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         gst_perf_update_average (perf->frame_count_total, fps, perf->fps);
     perf->frame_count_total++;
 
+#ifdef HAVE_DEEPSTREAM
+    ds_fps = perf->ds_frame_count / time_factor;
+#endif
+
     g_mutex_lock (&perf->bps_mutex);
     bps = perf->bps;
     g_mutex_unlock (&perf->bps_mutex);
@@ -617,6 +645,13 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         GST_OBJECT_NAME (perf), GST_TIME_ARGS (time), bps, mean_bps,
         fps, perf->fps);
 
+#ifdef HAVE_DEEPSTREAM
+    if (idx < GST_PERF_MSG_MAX_SIZE) {
+      idx += g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
+          "; ds-fps: %0.03f", ds_fps);
+    }
+#endif
+
     details = gst_structure_new_empty ("perf");
     gst_structure_set (details,
         "timestamp", GST_TYPE_CLOCK_TIME, time,
@@ -624,6 +659,9 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         "mean_bps", G_TYPE_DOUBLE, mean_bps,
         "fps", G_TYPE_DOUBLE, fps,
         "mean_fps", G_TYPE_DOUBLE, perf->fps,
+#ifdef HAVE_DEEPSTREAM
+        "ds-fps", G_TYPE_DOUBLE, ds_fps,
+#endif
         NULL);
 
     gst_perf_reset (perf);
@@ -636,8 +674,10 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     if (print_cpu_load) {
       guint32 cpu_load;
       gst_perf_cpu_get_load (perf, &cpu_load);
-      idx = g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
-          "; cpu: %d; ", cpu_load);
+      if (idx < GST_PERF_MSG_MAX_SIZE) {
+        idx += g_snprintf (&info[idx], GST_PERF_MSG_MAX_SIZE - idx,
+            "; cpu: %d; ", cpu_load);
+      }
       gst_structure_set (details, "cpu", G_TYPE_INT, (gint) cpu_load, NULL);
     }
 
@@ -652,6 +692,9 @@ gst_perf_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
   }
 
   perf->frame_count++;
+#ifdef HAVE_DEEPSTREAM
+  perf->ds_frame_count += ds_frame_count;
+#endif
   g_mutex_lock (&perf->byte_count_mutex);
   perf->byte_count += gst_buffer_get_size (buf);
   g_mutex_unlock (&perf->byte_count_mutex);
@@ -690,6 +733,7 @@ gst_perf_reset (GstPerf * perf)
   g_return_if_fail (perf);
 
   perf->frame_count = 0;
+  perf->ds_frame_count = 0;
 }
 
 static void

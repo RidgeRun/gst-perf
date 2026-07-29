@@ -34,8 +34,10 @@ print_perf_info (GstMessage * message)
   gdouble mean_bps = 0.0;
   gdouble fps = 0.0;
   gdouble mean_fps = 0.0;
+  gdouble ds_fps = 0.0;
   gint cpu = 0;
   gboolean has_cpu = FALSE;
+  gboolean has_ds_fps = FALSE;
 
   gst_message_parse_info_details (message, &details);
   if (details == NULL) {
@@ -58,11 +60,16 @@ print_perf_info (GstMessage * message)
   }
 
   has_cpu = gst_structure_get_int (details, "cpu", &cpu);
+  has_ds_fps = gst_structure_get_double (details, "ds-fps", &ds_fps);
 
   g_print ("%s: timestamp=%" GST_TIME_FORMAT
       " bps=%.3f mean_bps=%.3f fps=%.3f mean_fps=%.3f",
       GST_MESSAGE_SRC_NAME (message), GST_TIME_ARGS (timestamp), bps,
       mean_bps, fps, mean_fps);
+
+  if (has_ds_fps) {
+    g_print (" ds-fps=%.3f", ds_fps);
+  }
 
   if (has_cpu) {
     g_print (" cpu=%d", cpu);

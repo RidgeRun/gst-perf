@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: deb
+        name: Debian checks
+        entry: hooks/deb_all.sh
+        language: script
+        pass_filenames: false
+        verbose: true
+        stages: [manual]

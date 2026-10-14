@@ -1,13 +1,16 @@
-Source: gst-perf
+Source: libgstperf
 Priority: optional
 Maintainer: RidgeRun Developers <support@ridgerun.com>
-Build-Depends: debhelper (>= 8.0.0), devscripts
-Standards-Version: 4.1.0
+Build-Depends: debhelper-compat (= 13), meson, ninja-build, pkg-config,
+ libgstreamer1.0-dev, libgstreamer-plugins-base1.0-dev
+Standards-Version: 4.7.0
 Section: utils
+Rules-Requires-Root: no
 
-Package: gst-perf
+Package: libgstperf
 Priority: optional
 Architecture: any
+Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Measure GStreamer pipeline performance
  A GStreamer element to measure framerate, bitrate and CPU usage

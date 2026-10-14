@@ -37,6 +37,7 @@ examples/perf-info-example
 debian/autoreconf.*
 debian/gst-perf.debhelper.log
 debian/gst-perf/
+debian/libgstperf/
 debian/files
 debian/tmp
 /gst-perf-*

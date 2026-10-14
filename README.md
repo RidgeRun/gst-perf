@@ -4,7 +4,37 @@ A GStreamer element to measure framerate, bitrate and CPU usage
 
 ## Build Instructions
 
-On Debian-based systems:
+### Meson
+
+Install the build dependencies on Debian-based systems:
+
+```bash
+sudo apt install build-essential meson ninja-build pkg-config \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+```
+
+Configure, build, and install:
+
+```bash
+meson setup builddir --prefix=/usr
+meson compile -C builddir
+sudo meson install -C builddir
+```
+
+The plugin is installed in `<libdir>/gstreamer-1.0`. Meson selects the library
+directory for your system; override it with `--libdir` during setup if needed.
+
+To use the plugin without installing it:
+
+```bash
+export GST_PLUGIN_PATH="$PWD/builddir/plugins${GST_PLUGIN_PATH:+:$GST_PLUGIN_PATH}"
+gst-inspect-1.0 perf
+```
+
+### Autotools
+
+The existing Autotools build is also supported. On Debian-based systems:
+
 ```bash
 ./autogen.sh
 ./configure --prefix /usr/ --libdir /usr/lib/$(uname -m)-linux-gnu/

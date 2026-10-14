@@ -43,3 +43,6 @@ debian/tmp
 *.substvars
 *.changes
 *.buildinfo
+
+# Meson build output
+/builddir/

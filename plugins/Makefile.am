@@ -1,5 +1,7 @@
 plugin_LTLIBRARIES = libgstperf.la
 
+EXTRA_DIST = meson.build
+
 # sources used to compile this plug-in
 libgstperf_la_SOURCES = gstperf.c gstperf.h
 
